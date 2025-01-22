@@ -4,7 +4,6 @@ import com.brunostar.csc.dto.UserDTO;
 import com.brunostar.csc.model.User;
 import com.brunostar.csc.service.UserService;
 import com.brunostar.csc.util.UserNotFoundException;
-import jakarta.websocket.server.PathParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,17 +12,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/users/")
+@RequestMapping("/api/users")
 public class UserController {
 
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
-    private final String userUrl = "/api/users";
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
     private UserService userService;
@@ -33,19 +30,19 @@ public class UserController {
         // Convert DTO to Entity, save, then convert back to DTO for response
         try {
             User user = userService.createUser(userDTOToEntity(userDTO));
-            return entityToDTO(user);
+            return entityToUserDTO(user);
         } catch (Exception e) {
             logger.error("Failed to Create user", e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error creating User", e);
         }
     }
 
-    @GetMapping(path = "{userUrl}")
+    @GetMapping()
     public List<UserDTO> getUsers() {
         try {
             List<User> users = userService.getUsers(); // Assuming userUrl is used in getUsers method
             return users.stream()
-                    .map(this::entityToDTO)
+                    .map(this::entityToUserDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
             // Handle exception, maybe log it and return an empty list or throw a custom exception
@@ -54,11 +51,11 @@ public class UserController {
         }
     }
 
-    @GetMapping("{userUrl}/{userId}")
+    @GetMapping("/{userId}")
     public UserDTO getUser(@PathVariable long userId) {
         try {
             User user = userService.getUserById(userId);
-            return entityToDTO(user);
+            return entityToUserDTO(user);
         } catch (UserNotFoundException e) {
             logger.error("User not found with id: {}", userId, e);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found", e);
@@ -68,13 +65,13 @@ public class UserController {
         }
     }
 
-    @PutMapping("{userUrl}/{userId}")
+    @PutMapping("/{userId}")
     public UserDTO updateUser(@PathVariable Long userId, @RequestBody UserDTO userDTO) {
         try {
             // Fetch the existing user from the database
             User existingUser = userService.getUserById(userId);
             User updatedUser = userService.updateUser(existingUser, userDTO);
-            return entityToDTO(updatedUser);
+            return entityToUserDTO(updatedUser);
         } catch (UserNotFoundException e) {
             logger.error("User not found with id: {} for update", userId, e);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found for update", e);
@@ -84,7 +81,7 @@ public class UserController {
         }
     }
 
-    @DeleteMapping("{userUrl}/{userId}")
+    @DeleteMapping("/{userId}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         try {
             userService.deleteUser(userId);
@@ -99,13 +96,13 @@ public class UserController {
     }
 
     private User userDTOToEntity(UserDTO dto) {
-        User user = new User();
+        User user = new User(dto.getUserId());
         user.setEmail(dto.getEmail());
         user.setUsername(dto.getUsername());
         return user;
     }
 
-    private UserDTO entityToDTO(User user) {
+    private UserDTO entityToUserDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setUserId(user.getUser_id());
         dto.setEmail(user.getEmail());
